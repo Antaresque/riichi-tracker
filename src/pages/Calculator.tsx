@@ -12,6 +12,7 @@ import Tiles from '../components/Tiles';
 import Toggle from '../components/Toggle';
 import ToggleOnOff from '../components/ToggleOnOff';
 import HanFu from '../components/calculator/HanFu';
+import PlaceholderTileButton from '../components/calculator/PlaceholderTileButton';
 import PointsResult from '../components/calculator/PointsResult';
 import ScoreResult from '../components/calculator/ScoreResult';
 import Selected from '../components/calculator/Selected';
@@ -21,6 +22,7 @@ import WindSelect from '../components/calculator/WindSelect';
 import Calc from '../components/icons/heroicons/Calc';
 import Cap from '../components/icons/heroicons/Cap';
 import Cog from '../components/icons/heroicons/Cog';
+import Dots from '../components/icons/heroicons/Dots';
 import Left from '../components/icons/heroicons/Left';
 import HorizontalRow from '../components/layout/HorizontalRow';
 import VerticalRow from '../components/layout/VerticalRow';
@@ -111,6 +113,8 @@ function CalculatorWithGame({
 	const settings = (game ? game.settings : globalSettings)!;
 	const [openedSettings, setOpenedSettings] = useState(false);
 	const isSanma = settings.sanma != null;
+
+	const [hiddenAdvanced, setHiddenAdvanced] = useState(true);
 
 	const initialHand: Hand = {
 		tiles: [],
@@ -490,6 +494,15 @@ function CalculatorWithGame({
 						{prefersQuick ? <Cap /> : <Calc />}
 					</CircleButton>
 				</div>
+				<div className="fixed z-10 bottom-2 left-2 lg:bottom-4 lg:left-4 flex flex-col gap-y-2">
+					<CircleButton
+						onClick={() => {
+							setHiddenAdvanced(!hiddenAdvanced);
+						}}
+					>
+						<Dots />
+					</CircleButton>
+				</div>
 				{prefersQuick ? (
 					<div className="invisible sm:visible fixed z-10 bottom-2 right-2 lg:bottom-4 lg:right-8 flex flex-col gap-y-2">
 						<JumpButton element={pointsCalculatorEl}>点</JumpButton>
@@ -843,31 +856,47 @@ function CalculatorWithGame({
 												<span className="text-xl">
 													Dora <span className="text-xs">Indicators</span>
 												</span>
-												<SelectedDora
-													dora={hand.dora}
-													onTileClick={(t, i) => {
-														updateAction(null);
-														updateHand((h) => {
-															h.dora.splice(i, 1);
-															sortTiles(h.dora);
-														});
-													}}
-												/>
+												<div className='flex flex-row'>
+													<SelectedDora
+														dora={hand.dora}
+														onTileClick={(t, i) => {
+															updateAction(null);
+															updateHand((h) => {
+																h.dora.splice(i, 1);
+																sortTiles(h.dora);
+															});
+														}}
+													/>
+													<ActionTileButton 
+														t="dora"
+														disabled={hand.dora.length >= 5}
+														currentAction={action}
+														onActionChange={updateAction}
+													>+</ActionTileButton>
+												</div>
 											</div>
 											<div className="flex flex-col justify-center items-center gap-y-1">
 												<span className="text-xl">
 													Uradora <span className="text-xs">Indicators</span>
 												</span>
-												<SelectedDora
-													dora={hand.uradora}
-													onTileClick={(t, i) => {
-														updateAction(null);
-														updateHand((h) => {
-															h.uradora.splice(i, 1);
-															sortTiles(h.uradora);
-														});
-													}}
-												/>
+												<div className="flex flex-row">
+													<SelectedDora
+														dora={hand.uradora}
+														onTileClick={(t, i) => {
+															updateAction(null);
+															updateHand((h) => {
+																h.uradora.splice(i, 1);
+																sortTiles(h.uradora);
+															});
+														}}
+													/>
+													<ActionTileButton 
+														t="uradora"
+														disabled={hand.uradora.length >= 5}
+														currentAction={action}
+														onActionChange={updateAction}
+													>+</ActionTileButton>
+												</div>
 											</div>
 										</div>
 									</div>
@@ -890,42 +919,6 @@ function CalculatorWithGame({
 											left="Tsumo"
 											right="Ron"
 										/>
-										<ActionButton
-											t="dora"
-											disabled={hand.dora.length >= 5}
-											currentAction={action}
-											onActionChange={updateAction}
-										>
-											Add Dora Indicator
-										</ActionButton>
-										<ActionButton
-											t="uradora"
-											disabled={hand.riichi == null || hand.uradora.length >= 5}
-											currentAction={action}
-											onActionChange={updateAction}
-										>
-											Add Uradora Indicator
-										</ActionButton>
-										{isSanma && !settings.northYakuhai && (
-											<Counter
-												canDecrement={hand.nukidora > 0}
-												onDecrement={() => {
-													updateAction(null);
-													updateHand((h) => {
-														h.nukidora--;
-													});
-												}}
-												canIncrement={hand.nukidora + allTiles.filter((t) => t === '4z').length < 4}
-												onIncrement={() => {
-													updateAction(null);
-													updateHand((h) => {
-														h.nukidora++;
-													});
-												}}
-											>
-												Kita ({hand.nukidora})
-											</Counter>
-										)}
 									</HorizontalRow>
 									<HorizontalRow>
 										<ToggleOnOff
@@ -949,37 +942,6 @@ function CalculatorWithGame({
 										>
 											Riichi
 										</ToggleOnOff>
-										{!settings.disabledYaku.includes('ダブル立直') && (
-											<ToggleOnOff
-												toggled={hand.riichi?.double ?? false}
-												disabled={hand.melds.filter((m) => m.t !== 'kan' || !m.closed).length > 0}
-												incompatible={
-													hand.riichi == null ||
-													(hand.riichi.ippatsu && hand.melds.filter((m) => m.t === 'kan' && m.closed).length > 0) ||
-													(hand.riichi.ippatsu && hand.lastTile)
-												}
-												onToggle={(b) => {
-													updateAction(null);
-													updateHand((h) => {
-														if (b && h.riichi == null) {
-															h.riichi = { double: true, ippatsu: false };
-														}
-														h.riichi!.double = b;
-														if (b) {
-															// Cannot be ippatsu if closed kan and double riichi.
-															if (h.riichi?.ippatsu && hand.melds.filter((m) => m.t === 'kan' && m.closed).length > 0) {
-																h.riichi.ippatsu = false;
-															}
-															if (h.riichi?.ippatsu && h.lastTile) {
-																h.lastTile = false;
-															}
-														}
-													});
-												}}
-											>
-												Double Riichi
-											</ToggleOnOff>
-										)}
 										{!settings.disabledYaku.includes('一発') && (
 											<ToggleOnOff
 												toggled={hand.riichi?.ippatsu ?? false}
@@ -1022,102 +984,135 @@ function CalculatorWithGame({
 											</ToggleOnOff>
 										)}
 									</HorizontalRow>
-									<HorizontalRow>
-										{(!settings.disabledYaku.includes('嶺上開花') || !settings.disabledYaku.includes('搶槓')) && (
-											<ToggleOnOff
-												toggled={hand.kan}
-												// No after a kan if no kan melds.
-												// No robbing a kan if all 4 kans in hand.
-												disabled={
-													(hand.agari === 'tsumo' && !hand.melds.some((m) => m.t === 'kan') && !hand.nukidora) ||
-													(hand.agari === 'ron' && hand.melds.filter((m) => m.t === 'kan').length === 4) ||
-													(hand.agari === 'ron' &&
-														hand.tiles.filter((t) => hand.tiles[hand.agariIndex] === t).length > 1)
-												}
-												incompatible={
-													hand.blessing || (hand.agari === 'tsumo' && hand.riichi?.ippatsu) || hand.lastTile
-												}
-												onToggle={(b) => {
-													updateAction(null);
-													updateHand((h) => {
-														h.kan = b;
-														// A kan call means no blessing, not last tile, and not tsumo ippatsu.
-														if (b) {
-															h.blessing = false;
-															h.lastTile = false;
-															if (h.agari === 'tsumo' && h.riichi) {
-																h.riichi.ippatsu = false;
+									{!hiddenAdvanced && (
+										<HorizontalRow>
+											{!settings.disabledYaku.includes('ダブル立直') && (
+												<ToggleOnOff
+													toggled={hand.riichi?.double ?? false}
+													disabled={hand.melds.filter((m) => m.t !== 'kan' || !m.closed).length > 0}
+													incompatible={
+														hand.riichi == null ||
+														(hand.riichi.ippatsu && hand.melds.filter((m) => m.t === 'kan' && m.closed).length > 0) ||
+														(hand.riichi.ippatsu && hand.lastTile)
+													}
+													onToggle={(b) => {
+														updateAction(null);
+														updateHand((h) => {
+															if (b && h.riichi == null) {
+																h.riichi = { double: true, ippatsu: false };
 															}
-														}
-													});
-												}}
-											>
-												{hand.agari === 'ron' ? 'Robbing a Kan' : 'After a Kan'}
-											</ToggleOnOff>
-										)}
-										{(!settings.disabledYaku.includes('海底摸月') || !settings.disabledYaku.includes('河底撈魚')) && (
-											<ToggleOnOff
-												toggled={hand.lastTile}
-												incompatible={
-													hand.blessing ||
-													(hand.agari === 'ron' && hand.riichi?.ippatsu) ||
-													hand.kan ||
-													(hand.riichi?.double && hand.riichi.ippatsu)
-												}
-												onToggle={(b) => {
-													updateAction(null);
-													updateHand((h) => {
-														// Last tile means no blessing, not from a kan call, not ron ippatsu.
-														h.lastTile = b;
-														if (b) {
-															h.blessing = false;
-															h.kan = false;
-															if (h.agari === 'ron' && h.riichi) {
-																h.riichi.ippatsu = false;
+															h.riichi!.double = b;
+															if (b) {
+																// Cannot be ippatsu if closed kan and double riichi.
+																if (h.riichi?.ippatsu && hand.melds.filter((m) => m.t === 'kan' && m.closed).length > 0) {
+																	h.riichi.ippatsu = false;
+																}
+																if (h.riichi?.ippatsu && h.lastTile) {
+																	h.lastTile = false;
+																}
 															}
-															if (h.riichi?.double && h.riichi.ippatsu) {
-																h.riichi.ippatsu = false;
+														});
+													}}
+												>
+													Double Riichi
+												</ToggleOnOff>
+											)}
+											{(!settings.disabledYaku.includes('嶺上開花') || !settings.disabledYaku.includes('搶槓')) && (
+												<ToggleOnOff
+													toggled={hand.kan}
+													// No after a kan if no kan melds.
+													// No robbing a kan if all 4 kans in hand.
+													disabled={
+														(hand.agari === 'tsumo' && !hand.melds.some((m) => m.t === 'kan') && !hand.nukidora) ||
+														(hand.agari === 'ron' && hand.melds.filter((m) => m.t === 'kan').length === 4) ||
+														(hand.agari === 'ron' &&
+															hand.tiles.filter((t) => hand.tiles[hand.agariIndex] === t).length > 1)
+													}
+													incompatible={
+														hand.blessing || (hand.agari === 'tsumo' && hand.riichi?.ippatsu) || hand.lastTile
+													}
+													onToggle={(b) => {
+														updateAction(null);
+														updateHand((h) => {
+															h.kan = b;
+															// A kan call means no blessing, not last tile, and not tsumo ippatsu.
+															if (b) {
+																h.blessing = false;
+																h.lastTile = false;
+																if (h.agari === 'tsumo' && h.riichi) {
+																	h.riichi.ippatsu = false;
+																}
 															}
-														}
-													});
-												}}
-											>
-												{hand.agari === 'tsumo' ? 'Under the Sea' : 'Under the River'}
-											</ToggleOnOff>
-										)}
-										{(!settings.disabledYaku.includes('天和') || !settings.disabledYaku.includes('地和')) && (
-											<ToggleOnOff
-												toggled={hand.blessing}
-												disabled={
-													(hand.agari === 'ron' &&
-														(settings.enabledLocalYaku.includes('人和') ? hand.seatWind === '1' : true)) ||
-													hand.melds.length > 0 ||
-													hand.nukidora > 0
-												}
-												incompatible={hand.riichi != null || hand.kan || hand.lastTile}
-												onToggle={(b) => {
-													updateAction(null);
-													updateHand((h) => {
-														h.blessing = b;
-														// Blessing means no call can be made, first title.
-														if (b) {
-															h.riichi = null;
-															h.uradora = [];
-															h.lastTile = false;
-															h.kan = false;
-														}
-													});
-												}}
-											>
-												{hand.seatWind === '1'
-													? 'Blessing of Heaven'
-													: settings.enabledLocalYaku.includes('人和') && hand.agari === 'ron'
-													? 'Blessing of Man'
-													: 'Blessing of Earth'}
-											</ToggleOnOff>
-										)}
-									</HorizontalRow>
-									{settings.otherScoring && (
+														});
+													}}
+												>
+													{hand.agari === 'ron' ? 'Robbing a Kan' : 'After a Kan'}
+												</ToggleOnOff>
+											)}
+											{(!settings.disabledYaku.includes('海底摸月') || !settings.disabledYaku.includes('河底撈魚')) && (
+												<ToggleOnOff
+													toggled={hand.lastTile}
+													incompatible={
+														hand.blessing ||
+														(hand.agari === 'ron' && hand.riichi?.ippatsu) ||
+														hand.kan ||
+														(hand.riichi?.double && hand.riichi.ippatsu)
+													}
+													onToggle={(b) => {
+														updateAction(null);
+														updateHand((h) => {
+															// Last tile means no blessing, not from a kan call, not ron ippatsu.
+															h.lastTile = b;
+															if (b) {
+																h.blessing = false;
+																h.kan = false;
+																if (h.agari === 'ron' && h.riichi) {
+																	h.riichi.ippatsu = false;
+																}
+																if (h.riichi?.double && h.riichi.ippatsu) {
+																	h.riichi.ippatsu = false;
+																}
+															}
+														});
+													}}
+												>
+													{hand.agari === 'tsumo' ? 'Under the Sea' : 'Under the River'}
+												</ToggleOnOff>
+											)}
+											{(!settings.disabledYaku.includes('天和') || !settings.disabledYaku.includes('地和')) && (
+												<ToggleOnOff
+													toggled={hand.blessing}
+													disabled={
+														(hand.agari === 'ron' &&
+															(settings.enabledLocalYaku.includes('人和') ? hand.seatWind === '1' : true)) ||
+														hand.melds.length > 0 ||
+														hand.nukidora > 0
+													}
+													incompatible={hand.riichi != null || hand.kan || hand.lastTile}
+													onToggle={(b) => {
+														updateAction(null);
+														updateHand((h) => {
+															h.blessing = b;
+															// Blessing means no call can be made, first title.
+															if (b) {
+																h.riichi = null;
+																h.uradora = [];
+																h.lastTile = false;
+																h.kan = false;
+															}
+														});
+													}}
+												>
+													{hand.seatWind === '1'
+														? 'Blessing of Heaven'
+														: settings.enabledLocalYaku.includes('人和') && hand.agari === 'ron'
+														? 'Blessing of Man'
+														: 'Blessing of Earth'}
+												</ToggleOnOff>
+											)}
+										</HorizontalRow>
+									)}
+									{settings.otherScoring && !hiddenAdvanced && (
 										<HorizontalRow>
 											<Counter
 												canDecrement={hand.extraYakuHan > 0}
@@ -1221,5 +1216,30 @@ function ActionButton({
 		>
 			{children}
 		</Button>
+	);
+}
+
+function ActionTileButton({
+	t,
+	currentAction,
+	onActionChange,
+	disabled,
+	children,
+}: {
+	t: Action['t'];
+	currentAction: Action | null;
+	onActionChange: (a: Action | null) => void;
+	disabled?: boolean;
+	small?: boolean;
+	children?: ReactNode;
+}) {
+	return (
+		<PlaceholderTileButton
+			onClick={() => onActionChange(currentAction?.t === t ? null : defaultAction(t))}
+			active={currentAction?.t === t}
+			disabled={disabled}
+		>
+			{children}
+		</PlaceholderTileButton>
 	);
 }
